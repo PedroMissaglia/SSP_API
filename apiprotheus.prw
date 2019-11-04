@@ -1,7 +1,7 @@
 #INCLUDE "TOTVS.CH"
 #INCLUDE "RESTFUL.CH"
 #INCLUDE "FWMVCDEF.CH"
-#include 'TESTE.ch'
+#include 'Protheus.ch'
 #INCLUDE "TOPCONN.ch"
 #INCLUDE "TBICONN.CH"
 
