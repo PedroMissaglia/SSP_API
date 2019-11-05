@@ -399,7 +399,8 @@ If lRet
 	               
 	                aJsonProd[nEntJson]["code"				]	:= (cAlias)->Produto 				
 					aJsonProd[nEntJson]["revenues"			]	:= (cAlias)->Total				
-					aJsonProd[nEntJson]["quantity_remaining"]	:= (cAlias)->Quant		
+					aJsonProd[nEntJson]["quantity_remaining"]	:= (cAlias)->Quant
+					aJsonProd[nEntJson]["description"		]	:= Alltrim((cAlias)->Descr)		
 					If nEntJson < Self:PageSize .And. nCount < nRecord
 	                
 	                Else
@@ -494,14 +495,17 @@ Static Function GetTop3(cAliasQry)
 	BeginSQL Alias cAliasQry
 	
 	SELECT 
-		D2_COD Produto, SUM(D2_TOTAL) as Total, B2_QATU Quant
+		D2_COD Produto, SUM(D2_TOTAL) as Total, B2_QATU Quant, B1_DESC Descr
 	FROM 
 		%Table:SB2% SB2, 
-		%Table:SD2% SD2
+		%Table:SD2% SD2,
+		%Table:SB1% SB1
 	WHERE 
 		D2_COD = B2_COD
+	AND 
+		B1_COD = B2_COD
 	GROUP BY 
-		D2_COD, B2_QATU
+		D2_COD, B2_QATU, B1_DESC
 	ORDER BY 
 		Total DESC OFFSET 0 ROWS FETCH NEXT 3 ROWS ONLY	
 	EndSQL
