@@ -691,6 +691,15 @@ If lRet
 					aJsonProd[nEntJson]["lot"				]	:= Alltrim((cAlias)->Lote)
 					aJsonProd[nEntJson]["quantity"			]	:= (cAlias)->Quant
 					aJsonProd[nEntJson]["remaining_days"	]	:= (cAlias)->DiffEmDias
+
+					If ((cAlias)->DiffEmDias > 0)
+						aJsonProd[nEntJson]["status"		]	:= 'Expirando'
+						aJsonProd[nEntJson]["status_color"	]	:= 'warning'
+					Else
+						aJsonProd[nEntJson]["status"		]	:= 'Expirou'
+						aJsonProd[nEntJson]["status_color"	]	:= 'danger'
+					EndIf
+
 					If nEntJson < Self:PageSize .And. nCount < nRecord
 	                
 	                Else
@@ -822,6 +831,7 @@ If lRet
 					aJsonProd[nEntJson]["description"		]	:= Alltrim((cAlias)->descr)				
 					aJsonProd[nEntJson]["security"			]	:= (cAlias)->estseg
 					aJsonProd[nEntJson]["quantity"			]	:= (cAlias)->quant
+					aJsonProd[nEntJson]["price"				]	:= (cAlias)->Preco
 					If nEntJson < Self:PageSize .And. nCount < nRecord
 	                
 	                Else
@@ -973,7 +983,7 @@ Static Function GetSaldoSeg(cAliasQry)
 	BeginSQL Alias cAliasQry
 	
 	SELECT 
-		B1_COD cod, B1_DESC descr, B1_ESTSEG estseg, B2_QATU quant
+		B1_COD cod, B1_DESC descr, B1_ESTSEG estseg, B2_QATU quant, B1_CUSTD Preco
 	FROM 
 		%Table:SB1% SB1,
 		%Table:SB2% SB2		
