@@ -71,6 +71,12 @@ DESCRIPTION "Retorna uma lista de Produtos";
 WSSYNTAX "products/{SearchKey, Status, Page, PageSize}"; 
 PATH "saldoSeguranca"       PRODUCES APPLICATION_JSON
 
+/*-------------------Get Produtos--------------------------------------*/
+WSMETHOD GET  lucroVenda;
+DESCRIPTION "Retorna uma lista de Produtos";
+WSSYNTAX "products/{SearchKey, Status, Page, PageSize}"; 
+PATH "lucroVenda"       PRODUCES APPLICATION_JSON
+
 END WSRESTFUL
 
 
@@ -887,6 +893,150 @@ Endif
 
 Return (lRet)
 
+//-------------------------------------------------------------------
+/*/{TESTE.doc} GET/TESTE
+Retorna uma lista de produtos.
+
+@param  SearchKey    , caracter, Chave de Pesquisa para ser considerado na consulta.
+        Status       , numerico, Fazer o filtro por de conferências selecionadas ou não selecionadas. ex: 1 = não selecionadas;2= selecionadas 
+        Page         , numerico, Posição do registro para ser considerado na consulta. Ex. A partir de: 10.
+        PageSize	 , numerico, Posição final do registro para ser considerado na consulta. Ex. A partir de: 10 até 20.
+
+@return cResponse	, Array, JSON com Array com as conferências pendentes.
+
+@author	 	Pedro Antonio Missaglia
+@since		08/01/2019
+@version	12.1.17
+/*/
+//-------------------------------------------------------------------
+WSMETHOD GET lucroVenda WSRECEIVE SearchKey, Status, Page, PageSize WSSERVICE TESTE
+
+Local cAlias            := GetnextAlias()
+Local cResponse         := ''
+Local oJsonProd			:= JsonObject():New()
+Local aJsonProd		  	:= {}
+Local nStatusCode       := 500
+Local cMessage          := 'Erro Interno'
+Local lRet              := .T.
+Local nCount            := 0
+Local nRecord           := 0     
+Local nEntJson          := 0
+Local nStart            := 0
+Local lHasNext			:= .F.
+
+Default Self:SearchKey  := ''
+Default Self:Status		:= '1'
+Default Self:Page       := 1
+Default Self:PageSize   := 100
+
+Self:SetContentType("application/json")
+
+//PREPARE ENVIRONMENT EMPRESA "T1" FILIAL "D MG 01 " USER 'admin' PASSWORD '1234'	
+PREPARE ENVIRONMENT EMPRESA "99" FILIAL "01" USER 'admin' PASSWORD ''
+
+If lRet
+	If(Positivo(Self:Page) .And. Positivo(Self:PageSize))
+		GetLucroVenda(cAlias)
+	    If (cAlias)->(!EOF())
+	
+	         COUNT TO nRecord
+	        (cAlias)->(DBGoTop()) 
+	
+	        //-------------------------------------------------------------------
+			// Limita a pagina.
+			//-------------------------------------------------------------------
+	        If Self:Page > 1
+	            nStart := ( (Self:Page-1) * Self:PageSize) +1 
+	        EndIf
+	        oJsonProd 			:=  JsonObject():New()
+	        
+	        SX2->( DbSetOrder( 1 ))
+	        If SX2->( DbSeek ( "SB1" ) ) 
+	        	oJsonProd["branch"	]	:= SX2->X2_MODO
+	        	oJsonProd["business"]	:= SX2->X2_MODOEMP
+	        	oJsonProd["unit"	]	:= SX2->X2_MODOUN
+	        Endif
+	        While (cAlias)->(!EOF())
+	            nCount++
+	            
+	
+	            If (nCount >= nStart) 
+	                
+	                nEntJson++
+	                aAdd( aJsonProd,  JsonObject():New() )                 
+	               
+	                aJsonProd[nEntJson]["code"				]	:= (cAlias)->cod 				
+					aJsonProd[nEntJson]["description"		]	:= Alltrim((cAlias)->descr)				
+					aJsonProd[nEntJson]["sale_price"		]	:= (cAlias)->sale_price
+					aJsonProd[nEntJson]["standard_price"	]	:= (cAlias)->std_price
+					aJsonProd[nEntJson]["profit"			]	:= (cAlias)->profit
+					aJsonProd[nEntJson]["number"			]	:= (cAlias)->pedido
+					If ((cAlias)->profit > 0)
+						aJsonProd[nEntJson]["profit_status"		]	:= "success"
+						aJsonProd[nEntJson]["profit_message"	]	:= "Lucro"
+					Elseif((cAlias)->profit == 0)
+						aJsonProd[nEntJson]["profit_status"		]	:= "warning"
+						aJsonProd[nEntJson]["profit_message"	]	:= "Neutro"
+					Else
+						aJsonProd[nEntJson]["profit_status"		]	:= "danger"
+						aJsonProd[nEntJson]["profit_message"	]	:= "Prejuizo"		
+					EndIf
+
+					If nEntJson < Self:PageSize .And. nCount < nRecord
+	                
+	                Else
+	                    Exit 
+	                EndIf
+	            
+	            	               
+	            EndIf   
+	
+	            If ( nEntJson == Self:PageSize )	            	
+	                Exit
+				EndIf
+				
+				(cAlias)->(DbSkip())	
+	            
+	        EndDo
+	                                  
+	        If nEntJson >= nRecord .Or. (nEntJson + nStart) >= nRecord .Or. nEntJson < Self:PageSize
+	            
+	            lHasNext	:= .F.
+	        Else	            
+	            lHasNext	:= .T.
+	        EndIf
+	    Else
+	    	oJsonProd 				:=  JsonObject():New()
+	    	oJsonProd["products"]	:= aJsonProd 
+	    	oJsonProd["hasNext"] 	:= lHasNext
+	       
+	    EndIf       
+	Else
+	    lRet 		:= .F.
+	    nStatusCode := 400
+	    cMessage 	:= "Parametros de paginacao com valores Negativo"
+	EndIf
+Endif
+
+If Select(cAlias) > 0
+	(cAlias)->(dbCloseArea())
+Endif
+
+If lRet
+	oJsonProd["products"]		:= aJsonProd 
+	oJsonProd["hasNext"] 		:= lHasNext
+	cResponse := FwJsonSerialize( oJsonProd )	
+    Self:SetResponse(cResponse)
+Else	
+    SetRestFault( nStatusCode, EncodeUTF8(cMessage) )
+EndIf
+If ValType(oJsonProd) == "O"
+	FreeObj(oJsonProd)
+	oJsonProd := Nil
+Endif
+
+Return (lRet)
+
 Static Function GetProd(cAliasQry)
     
 	BeginSQL Alias cAliasQry
@@ -993,6 +1143,23 @@ Static Function GetSaldoSeg(cAliasQry)
 		B2_QATU <= B1_ESTSEG 
 	ORDER BY 
 		B2_QATU	 
+	EndSQL
+
+Return
+
+Static Function GetLucroVenda(cAliasQry)
+    
+	BeginSQL Alias cAliasQry
+	
+	SELECT 
+		B1_COD cod, B1_DESC descr, D2_PRCVEN sale_price, B1_CUSTD std_price, (D2_PRCVEN - B1_CUSTD) profit, D2_PEDIDO pedido
+	FROM 
+		%Table:SB1% SB1,
+		%Table:SD2% SD2		
+	WHERE 
+		B1_COD = D2_COD
+	ORDER BY 
+		profit 
 	EndSQL
 
 Return
